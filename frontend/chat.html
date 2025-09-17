@@ -1,0 +1,668 @@
+<!-- file: frontend/chat.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demotivator AI - Reality Check Terminal</title>
+    <style>
+        :root {
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #1a1a1a;
+            --bg-tertiary: #2a2a2a;
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --accent: #ff3366;
+            --accent-dim: #cc1144;
+            --user-bubble: #1e3a5f;
+            --ai-bubble: #2a1a2a;
+            --border: #333;
+            --error: #ff4444;
+            --success: #44ff44;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Header */
+        .header {
+            background: var(--bg-secondary);
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--accent);
+            text-shadow: 0 0 20px rgba(255, 51, 102, 0.5);
+        }
+
+        .subtitle {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        /* Chat Container */
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            scroll-behavior: smooth;
+        }
+
+        .chat-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .chat-container::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+
+        .chat-container::-webkit-scrollbar-thumb {
+            background: var(--accent-dim);
+            border-radius: 4px;
+        }
+
+        /* Message Bubbles */
+        .message {
+            margin-bottom: 1rem;
+            display: flex;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message.assistant {
+            justify-content: flex-start;
+        }
+
+        .bubble {
+            max-width: 70%;
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+            line-height: 1.5;
+        }
+
+        .user .bubble {
+            background: var(--user-bubble);
+            border-bottom-right-radius: 4px;
+        }
+
+        .assistant .bubble {
+            background: var(--ai-bubble);
+            border: 1px solid var(--border);
+            border-bottom-left-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .verdict-line {
+            display: block;
+            margin-top: 1rem;
+            padding-top: 0.5rem;
+            border-top: 1px solid var(--accent-dim);
+            color: var(--accent);
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        /* Typing Indicator */
+        .typing-indicator {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background: var(--ai-bubble);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            border-bottom-left-radius: 4px;
+            margin-bottom: 1rem;
+        }
+
+        .typing-indicator span {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent);
+            margin: 0 2px;
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-indicator span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-indicator span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing {
+            0%, 60%, 100% {
+                transform: translateY(0);
+                opacity: 0.5;
+            }
+            30% {
+                transform: translateY(-10px);
+                opacity: 1;
+            }
+        }
+
+        /* Input Area */
+        .input-container {
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border);
+            padding: 1rem;
+        }
+
+        .input-wrapper {
+            display: flex;
+            gap: 0.5rem;
+            align-items: flex-end;
+        }
+
+        .message-input {
+            flex: 1;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.75rem;
+            font-size: 1rem;
+            resize: none;
+            min-height: 50px;
+            max-height: 150px;
+            font-family: inherit;
+        }
+
+        .message-input:focus {
+            outline: none;
+            border-color: var(--accent-dim);
+            box-shadow: 0 0 0 1px var(--accent-dim);
+        }
+
+        .message-input::placeholder {
+            color: var(--text-secondary);
+        }
+
+        /* Buttons */
+        .btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .btn:hover:not(:disabled) {
+            background: var(--accent-dim);
+            transform: translateY(-1px);
+        }
+
+        .btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: var(--border);
+        }
+
+        /* Status Messages */
+        .status-message {
+            text-align: center;
+            padding: 0.5rem;
+            margin: 0.5rem 0;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+
+        .status-error {
+            background: rgba(255, 68, 68, 0.1);
+            color: var(--error);
+            border: 1px solid rgba(255, 68, 68, 0.3);
+        }
+
+        .status-info {
+            background: rgba(255, 51, 102, 0.1);
+            color: var(--accent);
+            border: 1px solid rgba(255, 51, 102, 0.3);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .bubble {
+                max-width: 85%;
+            }
+            
+            .header {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            .header-buttons {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Configuration - Change this to your backend URL -->
+    <script>
+        const API_BASE = 'http://localhost:8001';  // Change this to your backend URL
+    </script>
+
+    <!-- Header -->
+    <div class="header">
+        <div>
+            <div class="title">DEMOTIVATOR AI</div>
+            <div class="subtitle">Your Reality Check Terminal</div>
+        </div>
+        <div class="header-buttons">
+            <button class="btn btn-secondary" onclick="clearChat()" aria-label="Clear conversation">
+                Clear
+            </button>
+            <button class="btn btn-secondary" onclick="exportChat()" aria-label="Export conversation">
+                Export
+            </button>
+        </div>
+    </div>
+
+    <!-- Chat Messages -->
+    <div class="chat-container" id="chatContainer" role="log" aria-live="polite" aria-label="Chat messages">
+        <!-- Messages will be added here -->
+    </div>
+
+    <!-- Input Area -->
+    <div class="input-container">
+        <div class="input-wrapper">
+            <textarea 
+                class="message-input" 
+                id="messageInput"
+                placeholder="Describe your doomed ambition..."
+                maxlength="2000"
+                aria-label="Message input"
+                onkeydown="handleKeyPress(event)"
+            ></textarea>
+            <button class="btn" id="sendBtn" onclick="sendMessage()" aria-label="Send message">
+                Send
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Session management
+        let sessionId = localStorage.getItem('demotivator_session_id');
+        if (!sessionId) {
+            sessionId = typeof crypto !== 'undefined' && crypto.randomUUID 
+                ? crypto.randomUUID() 
+                : 'session-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('demotivator_session_id', sessionId);
+        }
+
+        // Message history for export
+        let messageHistory = [];
+
+        // Auto-resize textarea
+        const messageInput = document.getElementById('messageInput');
+        messageInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 150) + 'px';
+        });
+
+        // Handle enter key (send on Enter, new line on Shift+Enter)
+        function handleKeyPress(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        // Add message to chat
+        function addMessage(content, isUser = false) {
+            const chatContainer = document.getElementById('chatContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user' : 'assistant'}`;
+            
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+            
+            // Check for verdict line and format it specially
+            if (!isUser && content.includes('VERDICT:')) {
+                const parts = content.split(/(\nVERDICT:.*$)/);
+                bubble.innerHTML = escapeHtml(parts[0]) + 
+                    (parts[1] ? `<span class="verdict-line">${escapeHtml(parts[1].trim())}</span>` : '');
+            } else {
+                bubble.textContent = content;
+            }
+            
+            messageDiv.appendChild(bubble);
+            chatContainer.appendChild(messageDiv);
+            
+            // Auto-scroll to bottom
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            
+            // Add to history
+            const timestamp = new Date().toLocaleString();
+            messageHistory.push({
+                role: isUser ? 'You' : 'AI',
+                content: content,
+                timestamp: timestamp
+            });
+            
+            return bubble;
+        }
+
+        // Show typing indicator
+        function showTypingIndicator() {
+            const chatContainer = document.getElementById('chatContainer');
+            const indicator = document.createElement('div');
+            indicator.className = 'message assistant';
+            indicator.id = 'typingIndicator';
+            indicator.innerHTML = `
+                <div class="typing-indicator">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            `;
+            chatContainer.appendChild(indicator);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // Remove typing indicator
+        function removeTypingIndicator() {
+            const indicator = document.getElementById('typingIndicator');
+            if (indicator) {
+                indicator.remove();
+            }
+        }
+
+        // Show status message
+        function showStatus(message, isError = false) {
+            const chatContainer = document.getElementById('chatContainer');
+            const statusDiv = document.createElement('div');
+            statusDiv.className = `status-message ${isError ? 'status-error' : 'status-info'}`;
+            statusDiv.textContent = message;
+            chatContainer.appendChild(statusDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => statusDiv.remove(), 5000);
+        }
+
+        // Escape HTML for security
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Send message
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const sendBtn = document.getElementById('sendBtn');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            // Sanitize and limit input
+            const sanitizedMessage = message.substring(0, 2000);
+            
+            // Disable input while sending
+            input.disabled = true;
+            sendBtn.disabled = true;
+            
+            // Add user message
+            addMessage(sanitizedMessage, true);
+            
+            // Clear input
+            input.value = '';
+            input.style.height = 'auto';
+            
+            // Show typing indicator
+            showTypingIndicator();
+            
+            try {
+                // Try streaming first
+                const response = await fetch(`${API_BASE}/chat_stream`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        user: sanitizedMessage,
+                        session_id: sessionId,
+                        length: 'standard'
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                // Read streaming response
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder('utf-8', { stream: true });
+                let buffer = '';
+                let firstToken = true;
+                let assistantBubble = null;
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    
+                    if (done) break;
+                    
+                    // Decode chunk (handle partial UTF-8)
+                    buffer += decoder.decode(value, { stream: true });
+                    
+                    // Remove typing indicator on first token
+                    if (firstToken && buffer.length > 0) {
+                        removeTypingIndicator();
+                        assistantBubble = addMessage('', false);
+                        firstToken = false;
+                    }
+                    
+                    // Update assistant message with accumulated buffer
+                    if (assistantBubble) {
+                        // Check for verdict line and format
+                        if (buffer.includes('VERDICT:')) {
+                            const parts = buffer.split(/(\nVERDICT:.*$)/);
+                            assistantBubble.innerHTML = escapeHtml(parts[0]) + 
+                                (parts[1] ? `<span class="verdict-line">${escapeHtml(parts[1].trim())}</span>` : '');
+                        } else {
+                            assistantBubble.textContent = buffer;
+                        }
+                        
+                        // Auto-scroll
+                        document.getElementById('chatContainer').scrollTop = 
+                            document.getElementById('chatContainer').scrollHeight;
+                    }
+                }
+                
+                // Final decode for any remaining bytes
+                if (decoder.decode) {
+                    const remaining = decoder.decode(new Uint8Array(), { stream: false });
+                    if (remaining) {
+                        buffer += remaining;
+                        if (assistantBubble) {
+                            if (buffer.includes('VERDICT:')) {
+                                const parts = buffer.split(/(\nVERDICT:.*$)/);
+                                assistantBubble.innerHTML = escapeHtml(parts[0]) + 
+                                    (parts[1] ? `<span class="verdict-line">${escapeHtml(parts[1].trim())}</span>` : '');
+                            } else {
+                                assistantBubble.textContent = buffer;
+                            }
+                        }
+                    }
+                }
+                
+                // Update history with final content
+                if (buffer) {
+                    messageHistory[messageHistory.length - 1].content = buffer;
+                }
+                
+            } catch (streamError) {
+                console.error('Streaming failed, trying non-streaming fallback:', streamError);
+                removeTypingIndicator();
+                
+                try {
+                    // Fallback to non-streaming endpoint
+                    const response = await fetch(`${API_BASE}/chat`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            user: sanitizedMessage,
+                            session_id: sessionId,
+                            length: 'standard'
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    addMessage(data.response, false);
+                    
+                } catch (fallbackError) {
+                    console.error('Both streaming and fallback failed:', fallbackError);
+                    showStatus('Network error. Please check your connection and try again.', true);
+                }
+            } finally {
+                // Re-enable input
+                input.disabled = false;
+                sendBtn.disabled = false;
+                input.focus();
+            }
+        }
+
+        // Clear chat
+        async function clearChat() {
+            if (!confirm('Clear all messages and start a new session?')) {
+                return;
+            }
+            
+            try {
+                // Call reset endpoint
+                const response = await fetch(`${API_BASE}/reset`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        session_id: sessionId
+                    })
+                });
+
+                const data = await response.json();
+                
+                // Generate new session ID
+                sessionId = data.session_id || (typeof crypto !== 'undefined' && crypto.randomUUID 
+                    ? crypto.randomUUID() 
+                    : 'session-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9));
+                localStorage.setItem('demotivator_session_id', sessionId);
+                
+                // Clear UI
+                document.getElementById('chatContainer').innerHTML = '';
+                messageHistory = [];
+                
+                showStatus('Session cleared. Ready for your next doomed venture.', false);
+                
+            } catch (error) {
+                console.error('Failed to reset session:', error);
+                // Clear locally anyway
+                document.getElementById('chatContainer').innerHTML = '';
+                messageHistory = [];
+                showStatus('Session cleared locally.', false);
+            }
+        }
+
+        // Export chat
+        function exportChat() {
+            if (messageHistory.length === 0) {
+                showStatus('No messages to export.', true);
+                return;
+            }
+            
+            // Build transcript
+            let transcript = 'DEMOTIVATOR AI - Chat Transcript\n';
+            transcript += '=' .repeat(40) + '\n';
+            transcript += `Session ID: ${sessionId}\n`;
+            transcript += `Exported: ${new Date().toLocaleString()}\n`;
+            transcript += '=' .repeat(40) + '\n\n';
+            
+            messageHistory.forEach(msg => {
+                transcript += `[${msg.timestamp}] ${msg.role}:\n`;
+                transcript += msg.content + '\n';
+                transcript += '-'.repeat(40) + '\n\n';
+            });
+            
+            // Create and trigger download
+            const blob = new Blob([transcript], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `demotivator_chat_${Date.now()}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showStatus('Chat exported successfully.', false);
+        }
+
+        // Initial focus
+        window.addEventListener('load', () => {
+            messageInput.focus();
+        });
+    </script>
+</body>
+</html>
